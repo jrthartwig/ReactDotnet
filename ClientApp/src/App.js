@@ -18,7 +18,6 @@ function ProfileContent() {
           account: accounts[0]
       };
 
-      // Silently acquires an access token which is then attached to a request for Microsoft Graph data
       instance.acquireTokenSilent(request).then((response) => {
           callMsGraph(response.accessToken).then(response => setGraphData(response));
       }).catch((e) => {

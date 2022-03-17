@@ -1,22 +1,56 @@
-import React, { Component } from 'react';
-import { Route } from 'react-router';
-import { Layout } from './components/Layout';
-import { Home } from './components/Home';
-import FetchData  from './components/FetchData';
-import { Counter } from './components/Counter';
+import React, { useState } from "react";
+import { PageLayout } from "./components/PageLayout";
+import { AuthenticatedTemplate, UnauthenticatedTemplate, useMsal } from "@azure/msal-react";
+import { loginRequest } from "./authConfig";
+import { ProfileData } from "./components/ProfileData";
+import { callMsGraph } from "./graph";
 
-import './custom.css'
 
-export default class App extends Component {
-  static displayName = App.name;
+function ProfileContent() {
+  const { instance, accounts } = useMsal();
+  const [graphData, setGraphData] = useState(null);
 
-render() {
+  const name = accounts[0] && accounts[0].name;
+
+  function RequestProfileData() {
+      const request = {
+          ...loginRequest,
+          account: accounts[0]
+      };
+
+      // Silently acquires an access token which is then attached to a request for Microsoft Graph data
+      instance.acquireTokenSilent(request).then((response) => {
+          callMsGraph(response.accessToken).then(response => setGraphData(response));
+      }).catch((e) => {
+          instance.acquireTokenPopup(request).then((response) => {
+              callMsGraph(response.accessToken).then(response => setGraphData(response));
+          });
+      });
+  }
+
   return (
-    <Layout>
-      <Route exact path='/' component={Home} />
-      <Route path='/counter' component={Counter} />
-      <Route path='/fetch-data' component={FetchData} />
-    </Layout>
+      <>
+          <h5 className="card-title">Welcome {name}</h5>
+          {graphData ? 
+              <ProfileData graphData={graphData} />
+              :
+              <button onClick={RequestProfileData}>Request Profile Information</button>
+          }
+      </>
+  );
+};
+
+function App() {
+  return (
+      <PageLayout>
+          <AuthenticatedTemplate>
+              <ProfileContent />
+          </AuthenticatedTemplate>
+          <UnauthenticatedTemplate>
+              <p>You are not signed in! Please sign in.</p>
+          </UnauthenticatedTemplate>
+      </PageLayout>
   );
 }
-}
+
+export default App;
